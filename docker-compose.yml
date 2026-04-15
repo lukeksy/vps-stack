@@ -81,6 +81,9 @@ services:
       FRONTEND_URL: https://todo.delaale.fr
       PORT: 3000
       TZ: Europe/Paris
+      AUTH_EMAIL: ${AUTH_EMAIL}
+      AUTH_PASSWORD_HASH: ${AUTH_PASSWORD_HASH}
+      JWT_SECRET: ${JWT_SECRET}
     networks:
       - internal
       - caddy
