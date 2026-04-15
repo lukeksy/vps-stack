@@ -12,7 +12,10 @@ n8n.delaale.fr {
         X-Frame-Options "SAMEORIGIN"
         Referrer-Policy "strict-origin-when-cross-origin"
     }
-    log { output file /var/log/caddy/n8n.log; format json }
+    log {
+        output file /var/log/caddy/n8n.log
+        format json
+    }
 }
 
 # brief
@@ -25,7 +28,10 @@ brief.delaale.fr {
         X-Content-Type-Options "nosniff"
         Cache-Control "no-cache, no-store, must-revalidate"
     }
-    log { output file /var/log/caddy/brief.log; format json }
+    log {
+        output file /var/log/caddy/brief.log
+        format json
+    }
 }
 
 # todo
@@ -47,7 +53,10 @@ todo.delaale.fr {
         X-Content-Type-Options "nosniff"
         X-Frame-Options "SAMEORIGIN"
     }
-    log { output file /var/log/caddy/todo.log; format json }
+    log {
+        output file /var/log/caddy/todo.log
+        format json
+    }
 }
 
 # ntfy
@@ -64,5 +73,8 @@ ntfy.delaale.fr {
         X-Content-Type-Options "nosniff"
         X-Frame-Options "SAMEORIGIN"
     }
-    log { output file /var/log/caddy/ntfy.log; format json }
+    log {
+        output file /var/log/caddy/ntfy.log
+        format json
+    }
 }
