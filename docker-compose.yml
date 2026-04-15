@@ -1,8 +1,6 @@
 services:
 
-  # ─────────────────────────────────────────────
-  # PostgreSQL — base de données n8n
-  # ─────────────────────────────────────────────
+  # PostgreSQL
   postgres:
     image: postgres:16-alpine
     container_name: postgres
@@ -21,9 +19,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # ─────────────────────────────────────────────
-  # n8n — orchestration workflows
-  # ─────────────────────────────────────────────
+  # n8n
   n8n:
     image: n8nio/n8n:latest
     container_name: n8n
@@ -32,25 +28,21 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      # Base de données
       DB_TYPE: postgresdb
       DB_POSTGRESDB_HOST: postgres
       DB_POSTGRESDB_PORT: 5432
       DB_POSTGRESDB_DATABASE: ${POSTGRES_DB}
       DB_POSTGRESDB_USER: ${POSTGRES_USER}
       DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
-      # n8n
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
       N8N_HOST: n8n.delaale.fr
       N8N_PORT: 5678
       N8N_PROTOCOL: https
       WEBHOOK_URL: https://n8n.delaale.fr/
       N8N_EDITOR_BASE_URL: https://n8n.delaale.fr/
-      # Sécurité
       N8N_BASIC_AUTH_ACTIVE: "true"
       N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER}
       N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
-      # Timezone
       GENERIC_TIMEZONE: Europe/Paris
       TZ: Europe/Paris
     volumes:
@@ -59,9 +51,7 @@ services:
       - internal
       - caddy
 
-  # ─────────────────────────────────────────────
-  # Ntfy — notifications push self-hosted
-  # ─────────────────────────────────────────────
+  # Ntfy
   ntfy:
     image: binwiederhier/ntfy:latest
     container_name: ntfy
@@ -76,9 +66,26 @@ services:
       - internal
       - caddy
 
-  # ─────────────────────────────────────────────
-  # Caddy — reverse proxy + SSL automatique
-  # ─────────────────────────────────────────────
+  # todo-api
+  todo-api:
+    build:
+      context: ${TODO_PATH:-/home/alexis/todo}/backend
+    container_name: todo-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/todo_app
+      N8N_WEBHOOK_URL: https://n8n.delaale.fr/webhook
+      FRONTEND_URL: https://todo.delaale.fr
+      PORT: 3000
+      TZ: Europe/Paris
+    networks:
+      - internal
+      - caddy
+
+  # Caddy
   caddy:
     image: caddy:2-alpine
     container_name: caddy
@@ -86,18 +93,16 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "443:443/udp"   # HTTP/3
+      - "443:443/udp"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
-      - brief_html:/srv/brief   # fichiers statiques du dashboard
+      - brief_html:/srv/brief
+      - todo_html:/srv/todo
     networks:
       - caddy
 
-# ─────────────────────────────────────────────
-# Volumes persistants
-# ─────────────────────────────────────────────
 volumes:
   postgres_data:
   n8n_data:
@@ -106,11 +111,9 @@ volumes:
   caddy_data:
   caddy_config:
   brief_html:
+  todo_html:
 
-# ─────────────────────────────────────────────
-# Réseaux
-# ─────────────────────────────────────────────
 networks:
-  internal:       # postgres <-> n8n uniquement, non exposé
+  internal:
     internal: true
-  caddy:          # services exposés via Caddy
+  caddy:
