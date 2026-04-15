@@ -1,0 +1,19 @@
+# Variables d'environnement — JAMAIS commiter
+.env
+.env.local
+.env.*.local
+
+# Logs Caddy
+*.log
+logs/
+
+# Données Docker locales (si montées en bind mount plutôt que volumes)
+data/
+volumes/
+
+# Éditeurs
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo

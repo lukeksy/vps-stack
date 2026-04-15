@@ -1,0 +1,116 @@
+services:
+
+  # ─────────────────────────────────────────────
+  # PostgreSQL — base de données n8n
+  # ─────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  # n8n — orchestration workflows
+  # ─────────────────────────────────────────────
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Base de données
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      # n8n
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      N8N_HOST: n8n.delaale.fr
+      N8N_PORT: 5678
+      N8N_PROTOCOL: https
+      WEBHOOK_URL: https://n8n.delaale.fr/
+      N8N_EDITOR_BASE_URL: https://n8n.delaale.fr/
+      # Sécurité
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
+      # Timezone
+      GENERIC_TIMEZONE: Europe/Paris
+      TZ: Europe/Paris
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - internal
+      - caddy
+
+  # ─────────────────────────────────────────────
+  # Ntfy — notifications push self-hosted
+  # ─────────────────────────────────────────────
+  ntfy:
+    image: binwiederhier/ntfy:latest
+    container_name: ntfy
+    restart: unless-stopped
+    command: serve
+    environment:
+      TZ: Europe/Paris
+    volumes:
+      - ntfy_data:/var/lib/ntfy
+      - ntfy_cache:/var/cache/ntfy
+    networks:
+      - internal
+      - caddy
+
+  # ─────────────────────────────────────────────
+  # Caddy — reverse proxy + SSL automatique
+  # ─────────────────────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - brief_html:/srv/brief   # fichiers statiques du dashboard
+    networks:
+      - caddy
+
+# ─────────────────────────────────────────────
+# Volumes persistants
+# ─────────────────────────────────────────────
+volumes:
+  postgres_data:
+  n8n_data:
+  ntfy_data:
+  ntfy_cache:
+  caddy_data:
+  caddy_config:
+  brief_html:
+
+# ─────────────────────────────────────────────
+# Réseaux
+# ─────────────────────────────────────────────
+networks:
+  internal:       # postgres <-> n8n uniquement, non exposé
+    internal: true
+  caddy:          # services exposés via Caddy
