@@ -77,7 +77,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/todo_app
-      N8N_WEBHOOK_URL: https://n8n.delaale.fr/webhook
+      N8N_WEBHOOK_URL: http://n8n:5678/webhook
       FRONTEND_URL: https://todo.delaale.fr
       PORT: 3000
       TZ: Europe/Paris
