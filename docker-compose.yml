@@ -98,6 +98,7 @@ services:
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
       OPENCLAW_LLM_PROVIDER: anthropic
       OPENCLAW_LLM_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENCLAW_CONTROL_UI_ALLOWED_ORIGINS: "https://assistant.delaale.fr"
       TZ: Europe/Paris
     volumes:
       - openclaw_config:/home/openclaw/.config/openclaw
