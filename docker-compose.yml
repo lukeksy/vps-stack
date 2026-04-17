@@ -77,6 +77,45 @@ services:
       - caddy
 
   # ─────────────────────────────────────────────
+  # todo-api — API Express dashboard todo
+  # ─────────────────────────────────────────────
+  todo-api:
+    build:
+      context: ${TODO_PATH:-/home/alexis/todo}/backend
+    container_name: todo-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/todo_app
+      N8N_WEBHOOK_URL: https://n8n.delaale.fr/webhook
+      FRONTEND_URL: https://todo.delaale.fr
+      PORT: 3000
+      TZ: Europe/Paris
+    networks:
+      - internal
+      - caddy
+
+  # ─────────────────────────────────────────────
+  # OpenClaw — assistant IA personnel
+  # ─────────────────────────────────────────────
+  openclaw:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: openclaw
+    restart: unless-stopped
+    environment:
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
+      OPENCLAW_LLM_PROVIDER: anthropic
+      OPENCLAW_LLM_API_KEY: ${ANTHROPIC_API_KEY}
+      TZ: Europe/Paris
+    volumes:
+      - openclaw_config:/home/openclaw/.config/openclaw
+      - openclaw_workspace:/home/openclaw/workspace
+    networks:
+      - caddy
+
+  # ─────────────────────────────────────────────
   # Caddy — reverse proxy + SSL automatique
   # ─────────────────────────────────────────────
   caddy:
@@ -91,7 +130,8 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
-      - brief_html:/srv/brief   # fichiers statiques du dashboard
+      - brief_html:/srv/brief      # fichiers statiques Morning Brief
+      - todo_html:/srv/todo        # fichiers statiques dashboard todo
     networks:
       - caddy
 
@@ -106,6 +146,9 @@ volumes:
   caddy_data:
   caddy_config:
   brief_html:
+  todo_html:
+  openclaw_config:
+  openclaw_workspace:
 
 # ─────────────────────────────────────────────
 # Réseaux

@@ -48,6 +48,58 @@ brief.delaale.fr {
     }
 }
 
+# todo.delaale.fr — dashboard todo (API + frontend statique)
+todo.delaale.fr {
+    # API backend
+    handle /api/* {
+        reverse_proxy todo-api:3000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+        }
+    }
+
+    # Frontend React (fichiers buildés)
+    handle {
+        root * /srv/todo
+        try_files {path} /index.html
+        file_server
+    }
+
+    encode gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+    }
+
+    log {
+        output file /var/log/caddy/todo.log
+        format json
+    }
+}
+
+# assistant.delaale.fr — OpenClaw assistant IA personnel
+assistant.delaale.fr {
+    reverse_proxy openclaw:18789 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+    }
+
+    log {
+        output file /var/log/caddy/openclaw.log
+        format json
+    }
+}
+
 # ntfy.delaale.fr — notifications push self-hosted
 ntfy.delaale.fr {
     reverse_proxy ntfy:80 {
