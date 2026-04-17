@@ -61,6 +61,10 @@ todo.delaale.fr {
 
 # assistant — OpenClaw
 assistant.delaale.fr {
+    basic_auth {
+        alexis $2a$14$Zfgrr5aW11uVGe6u0OD9hOOrXPtmTsTkCXA3ms8dUMSOPcSxSXYze
+    }
+
     reverse_proxy openclaw:18789 {
         header_up Host {host}
         header_up X-Real-IP {remote_host}
