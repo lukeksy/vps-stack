@@ -54,6 +54,7 @@ services:
       NOTION_PROP_STATUS: ${NOTION_PROP_STATUS:-Statut}
       NOTION_PROP_DUE: ${NOTION_PROP_DUE:-Échéance}
       BRIEF_OUTPUT_PATH: /home/node/brief-output/data.json
+      NODE_FUNCTION_ALLOW_BUILTIN: fs
     volumes:
       - n8n_data:/home/node/.n8n
       - ./brief-generator:/home/node/brief-generator:ro
