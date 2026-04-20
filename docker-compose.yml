@@ -119,7 +119,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
-      - brief_html:/srv/brief
+      - ./brief:/srv/brief
       - todo_html:/srv/todo
     networks:
       - caddy
@@ -131,7 +131,6 @@ volumes:
   ntfy_cache:
   caddy_data:
   caddy_config:
-  brief_html:
   todo_html:
   openclaw_config:
   openclaw_workspace:
