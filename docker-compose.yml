@@ -45,8 +45,19 @@ services:
       N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
       GENERIC_TIMEZONE: Europe/Paris
       TZ: Europe/Paris
+      # Brief generator
+      TODOIST_TOKEN: ${TODOIST_TOKEN}
+      NOTION_TOKEN: ${NOTION_TOKEN}
+      NOTION_BAYARD_TASKS_DB: ${NOTION_BAYARD_TASKS_DB}
+      NOTION_TELEMANN_TASKS_DB: ${NOTION_TELEMANN_TASKS_DB}
+      NOTION_PROP_NAME: ${NOTION_PROP_NAME:-Nom}
+      NOTION_PROP_STATUS: ${NOTION_PROP_STATUS:-Statut}
+      NOTION_PROP_DUE: ${NOTION_PROP_DUE:-Échéance}
+      BRIEF_OUTPUT_PATH: /home/node/brief-output/data.json
     volumes:
       - n8n_data:/home/node/.n8n
+      - ./brief-generator:/home/node/brief-generator:ro
+      - ./brief:/home/node/brief-output
     networks:
       - internal
       - caddy

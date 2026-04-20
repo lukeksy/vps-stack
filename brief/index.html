@@ -631,9 +631,9 @@
         <div class="card-header">
           <span class="card-icon">📬</span>
           <span class="card-title">Emails importants</span>
-          <span class="card-badge">7 non lus</span>
+          <span class="card-badge" id="email-badge">7 non lus</span>
         </div>
-        <div style="overflow-y:auto;max-height:380px">
+        <div id="email-list" style="overflow-y:auto;max-height:380px">
           <div class="email-item">
             <div class="email-top">
               <div class="email-from">Marie Leclerc</div>
@@ -677,8 +677,9 @@
           <div class="card-header">
             <span class="card-icon">🔴</span>
             <span class="card-title">Todoist</span>
-            <span class="card-badge">3 tâches</span>
+            <span class="card-badge" id="todoist-badge">3 tâches</span>
           </div>
+          <div id="todoist-task-list">
           <div class="task-section-label">En retard</div>
           <div class="task-item" draggable="true" data-task="Appeler le plombier" data-type="todoist" ondragstart="taskDragStart(event)">
             <div class="task-check" onclick="toggleTask(this)"></div>
@@ -705,6 +706,7 @@
               <div class="task-meta">Perso · Priorité basse</div>
             </div>
           </div>
+          </div><!-- /todoist-task-list -->
         </div>
 
         <!-- Notion Bayard -->
@@ -712,8 +714,9 @@
           <div class="card-header">
             <span class="card-icon">📒</span>
             <span class="card-title">Bayard</span>
-            <span class="card-badge">2 tâches</span>
+            <span class="card-badge" id="bayard-badge">2 tâches</span>
           </div>
+          <div id="bayard-task-list">
           <div class="task-item" draggable="true" data-task="Réviser le budget Q2" data-type="bayard" ondragstart="taskDragStart(event)">
             <div class="task-check" onclick="toggleTask(this)"></div>
             <div class="task-indicator" style="background:var(--gold)"></div>
@@ -730,6 +733,7 @@
               <div class="task-meta">Juridique</div>
             </div>
           </div>
+          </div><!-- /bayard-task-list -->
         </div>
 
         <!-- Notion Telemann -->
@@ -737,8 +741,9 @@
           <div class="card-header">
             <span class="card-icon">🎼</span>
             <span class="card-title">Telemann</span>
-            <span class="card-badge">3 tâches</span>
+            <span class="card-badge" id="telemann-badge">3 tâches</span>
           </div>
+          <div id="telemann-task-list">
           <div class="task-item" draggable="true" data-task="Envoyer convocations Programme B" data-type="tele" ondragstart="taskDragStart(event)">
             <div class="task-check" onclick="toggleTask(this)"></div>
             <div class="task-indicator p1"></div>
@@ -765,9 +770,12 @@
           </div>
         </div>
 
+          </div><!-- /telemann-task-list -->
+        </div>
+
       </div><!-- /grid-tasks -->
 
-      <div class="page-updated">Mis à jour à 07h03</div>
+      <div class="page-updated" id="page-updated">Mis à jour à 07h03</div>
 
     </div><!-- /grid -->
   </div><!-- /brief-col -->
@@ -1285,6 +1293,130 @@
     this.style.height = 'auto';
     this.style.height = Math.min(this.scrollHeight, 100) + 'px';
   });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CHARGEMENT DONNÉES RÉELLES (data.json)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  function fmtDate(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  }
+
+  function getStatusCls(status) {
+    const s = (status || '').toLowerCase();
+    if (s.includes('cours') || s.includes('doing') || s.includes('progress')) return 'status-doing';
+    if (s.includes('bloqué') || s.includes('blocked')) return 'status-blocked';
+    return 'status-todo';
+  }
+
+  function taskItemHTML(name, { priority = 1, overdue = false, due = null, status = null, type = 'todoist', indStyle = null } = {}) {
+    // Todoist priority : 4=P1 (highest) → p1 CSS, 3=P2 → p2, 2=P3 → p3, 1=P4 → p4
+    const indCls = indStyle ? '' : `p${5 - Math.max(1, Math.min(4, priority))}`;
+    const indAttr = indStyle ? `style="${indStyle}"` : ``;
+    const statusHTML = status ? `<span class="notion-status ${getStatusCls(status)}">${status}</span>` : '';
+    const metaText = overdue && due ? `En retard · ${fmtDate(due)}` : due ? fmtDate(due) : '';
+    const metaCls = overdue ? 'task-meta overdue' : 'task-meta';
+    const safeName = name.replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    return `<div class="task-item" draggable="true" data-task="${safeName}" data-type="${type}" ondragstart="taskDragStart(event)">
+      <div class="task-check" onclick="toggleTask(this)"></div>
+      <div class="task-indicator ${indCls}" ${indAttr}></div>
+      <div class="task-content">
+        <div class="task-name">${name.replace(/</g,'&lt;')}${statusHTML}</div>
+        ${metaText ? `<div class="${metaCls}">${metaText}</div>` : ''}
+      </div>
+    </div>`;
+  }
+
+  function renderCurrentWeather(cur) {
+    document.getElementById('w-icon').textContent = WMO_ICON[cur.wmo_code] ?? '🌡';
+    document.getElementById('w-temp').innerHTML   = `${cur.temp}<sup>°C</sup>`;
+    document.getElementById('w-desc').textContent = cur.description;
+    document.getElementById('w-feel').textContent = `🌡 Ressenti ${cur.feels_like}°`;
+    document.getElementById('w-hum').textContent  = `💧 ${cur.humidity}%`;
+    document.getElementById('w-wind').textContent = `💨 ${cur.wind_kmh} km/h`;
+  }
+
+  function renderTodoistTasks(tasks) {
+    const overdue = tasks.filter(t => t.overdue);
+    const today   = tasks.filter(t => !t.overdue);
+    let html = '';
+    if (overdue.length) {
+      html += `<div class="task-section-label">En retard</div>`;
+      html += overdue.map(t => taskItemHTML(t.name, { priority: t.priority, overdue: true, due: t.due, type: 'todoist' })).join('');
+    }
+    if (today.length) {
+      html += `<div class="task-section-label">Aujourd'hui</div>`;
+      html += today.map(t => taskItemHTML(t.name, { priority: t.priority, overdue: false, due: t.due, type: 'todoist' })).join('');
+    }
+    if (!tasks.length) html = `<div style="padding:14px 16px;font-size:12px;color:var(--text-dim)">Aucune tâche pour aujourd'hui 🎉</div>`;
+    document.getElementById('todoist-task-list').innerHTML = html;
+    document.getElementById('todoist-badge').textContent = tasks.length + ' tâche' + (tasks.length !== 1 ? 's' : '');
+  }
+
+  function renderNotionTasks(listId, badgeId, tasks, type, indStyle) {
+    let html = '';
+    if (!tasks.length) {
+      html = `<div style="padding:14px 16px;font-size:12px;color:var(--text-dim)">Aucune tâche pour aujourd'hui 🎉</div>`;
+    } else {
+      html = tasks.map(t => taskItemHTML(t.name, { overdue: t.overdue, due: t.due, status: t.status, type, indStyle })).join('');
+    }
+    document.getElementById(listId).innerHTML = html;
+    document.getElementById(badgeId).textContent = tasks.length + ' tâche' + (tasks.length !== 1 ? 's' : '');
+  }
+
+  function renderEmails(emails) {
+    if (!emails || !emails.length) return;
+    document.getElementById('email-list').innerHTML = emails.map(e => `
+      <div class="email-item">
+        <div class="email-top">
+          <div class="email-from">${(e.from||'').replace(/</g,'&lt;')}</div>
+          <div class="email-date">${e.date||''}</div>
+        </div>
+        <div class="email-subject">${(e.subject||'').replace(/</g,'&lt;')}</div>
+        ${e.snippet ? `<div class="email-snippet">${e.snippet.replace(/</g,'&lt;')}</div>` : ''}
+      </div>`).join('');
+    document.getElementById('email-badge').textContent = emails.length + ' non lu' + (emails.length !== 1 ? 's' : '');
+  }
+
+  async function loadBrief() {
+    try {
+      const res = await fetch('/data.json?t=' + Date.now());
+      if (!res.ok) return; // silently keep demo data
+      const data = await res.json();
+
+      if (data.weather?.current) renderCurrentWeather(data.weather.current);
+      if (data.weather?.hourly?.length) {
+        const hourly = data.weather.hourly.map(h => ({ ...h, rain: h.rain_pct }));
+        renderTimeline(hourly);
+        renderClothing(hourly);
+      }
+
+      if (data.tasks?.todoist)  renderTodoistTasks(data.tasks.todoist);
+      if (data.tasks?.bayard)   renderNotionTasks('bayard-task-list',   'bayard-badge',   data.tasks.bayard,   'bayard',  'background:var(--gold)');
+      if (data.tasks?.telemann) renderNotionTasks('telemann-task-list', 'telemann-badge', data.tasks.telemann, 'tele',    'background:var(--blue)');
+
+      if (data.emails?.length)  renderEmails(data.emails);
+
+      if (data.agenda?.length) {
+        TL_EVENTS.length = 0;
+        TL_EVENTS.push(...data.agenda);
+        renderAgenda();
+      }
+
+      if (data.generated_at) {
+        const d = new Date(data.generated_at);
+        const h = String(d.getHours()).padStart(2,'0');
+        const m = String(d.getMinutes()).padStart(2,'0');
+        document.getElementById('page-updated').textContent = `Mis à jour à ${h}h${m}`;
+      }
+    } catch (e) {
+      console.warn('data.json non disponible, données de démo affichées :', e.message);
+    }
+  }
+
+  loadBrief();
   </script>
 
 </body>
