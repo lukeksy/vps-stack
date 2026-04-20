@@ -112,34 +112,27 @@ async function fetchWeather() {
 async function fetchTodoist() {
   const headers = { Authorization: `Bearer ${TODOIST_TOKEN}` };
 
-  const [r1, r2] = await Promise.all([
-    fetch('https://api.todoist.com/rest/v2/tasks?filter=today',   { headers }),
-    fetch('https://api.todoist.com/rest/v2/tasks?filter=overdue', { headers }),
-  ]);
+  // On récupère toutes les tâches actives et on filtre côté script
+  // (le paramètre filter=today nécessite un compte premium Todoist)
+  const res = await fetch('https://api.todoist.com/rest/v2/tasks', { headers });
+  if (!res.ok) throw new Error(`Todoist: ${res.status}`);
 
-  if (!r1.ok) throw new Error(`Todoist today: ${r1.status}`);
-  if (!r2.ok) throw new Error(`Todoist overdue: ${r2.status}`);
+  const tasks = await res.json();
+  const today = new Date().toISOString().split('T')[0];
 
-  const todayTasks   = await r1.json();
-  const overdueTasks = await r2.json();
-
-  // Dédupliquer (une tâche peut apparaître dans les deux si due=today)
-  const seenIds = new Set();
-
-  function mapTask(t, overdue) {
-    seenIds.add(t.id);
-    return {
+  return tasks
+    .filter(t => t.due?.date && t.due.date <= today)
+    .map(t => ({
       name:     t.content,
       priority: t.priority, // 4=P1 (highest), 3=P2, 2=P3, 1=P4 (none)
-      due:      t.due?.date ?? null,
-      overdue,
-    };
-  }
-
-  return [
-    ...overdueTasks.map(t => mapTask(t, true)),
-    ...todayTasks.filter(t => !seenIds.has(t.id)).map(t => mapTask(t, false)),
-  ];
+      due:      t.due.date,
+      overdue:  t.due.date < today,
+    }))
+    .sort((a, b) => {
+      // Tâches en retard d'abord, puis par priorité décroissante
+      if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
+      return b.priority - a.priority;
+    });
 }
 
 // ── Notion ────────────────────────────────────────────────────────────────────
@@ -148,31 +141,43 @@ async function fetchNotionTasks(databaseId) {
   const today = new Date().toISOString().split('T')[0];
 
   // Filtre : échéance <= aujourd'hui OU pas de date
-  const body = {
-    filter: {
-      or: [
-        { property: NOTION_PROP_DUE, date: { on_or_before: today } },
-        { property: NOTION_PROP_DUE, date: { is_empty: true } },
-      ],
-    },
-    sorts: [
-      { property: NOTION_PROP_DUE, direction: 'ascending' },
+  const notionHeaders = {
+    Authorization:    `Bearer ${NOTION_TOKEN}`,
+    'Notion-Version': '2022-06-28',
+    'Content-Type':   'application/json',
+  };
+
+  const filter = {
+    or: [
+      { property: NOTION_PROP_DUE, date: { on_or_before: today } },
+      { property: NOTION_PROP_DUE, date: { is_empty: true } },
     ],
   };
 
-  const res = await fetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
+  // Tentative avec tri par date d'échéance
+  let res = await fetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
     method: 'POST',
-    headers: {
-      Authorization:    `Bearer ${NOTION_TOKEN}`,
-      'Notion-Version': '2022-06-28',
-      'Content-Type':   'application/json',
-    },
-    body: JSON.stringify(body),
+    headers: notionHeaders,
+    body: JSON.stringify({
+      filter,
+      sorts: [{ property: NOTION_PROP_DUE, direction: 'ascending' }],
+    }),
   });
 
+  // Si le tri échoue (propriété introuvable), on réessaie sans tri
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Notion DB ${databaseId}: ${res.status} ${err.slice(0, 200)}`);
+    const errText = await res.text();
+    if (res.status === 400 && errText.includes('sort property')) {
+      res = await fetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
+        method: 'POST',
+        headers: notionHeaders,
+        body: JSON.stringify({ filter }),
+      });
+    }
+    if (!res.ok) {
+      const err = res.bodyUsed ? errText : await res.text();
+      throw new Error(`Notion DB ${databaseId}: ${res.status} ${err.slice(0, 200)}`);
+    }
   }
 
   const data = await res.json();
