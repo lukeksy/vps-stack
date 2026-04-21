@@ -595,6 +595,10 @@
         <div class="greeting">Bonjour <strong>Alexis</strong> ☀️</div>
       </div>
       <div class="header-right">
+        <div id="usage-tokens" style="display:none;text-align:right">
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:2px">Claude API</div>
+          <div style="font-size:15px;font-weight:300;color:var(--text-2);letter-spacing:-0.01em"><span id="usage-count">—</span> <span style="font-size:11px;color:var(--text-dim)">tokens</span></div>
+        </div>
         <div class="header-date" id="header-date">Lundi 20 avril 2026</div>
         <div class="header-time" id="live-clock">—</div>
       </div>
@@ -795,7 +799,6 @@
 
       <div class="page-updated">
         <span id="page-updated">Mis à jour à 07h03</span>
-        <span id="usage-tokens" style="display:none">· <span id="usage-count">—</span> tokens Claude</span>
         <button class="refresh-btn" id="refresh-btn" onclick="refreshBrief()" title="Recharger les données">↺</button>
         <button class="refresh-btn" id="trigger-btn" onclick="triggerWorkflow()" title="Relancer le workflow n8n">▶</button>
       </div>
@@ -820,8 +823,8 @@
     </div>
 
     <div class="chat-messages" id="chat-messages">
-      <div class="msg msg-ai" id="chat-greeting">
-        <div class="msg-bubble" style="opacity:0.5">Chargement du brief…</div>
+      <div class="msg msg-ai">
+        <div class="msg-bubble">Bonjour Alexis, comment puis-je t'aider aujourd'hui ?</div>
       </div>
     </div>
 
@@ -1525,15 +1528,8 @@
         document.getElementById('usage-tokens').style.display = '';
       }
 
-      // Greeting contextuel si le chat est en état initial
-      if (document.getElementById('chat-greeting')) {
-        initChatGreeting(data);
-      }
     } catch (e) {
       console.warn('data.json non disponible, données de démo affichées :', e.message);
-      if (document.getElementById('chat-greeting')) {
-        document.getElementById('chat-greeting').querySelector('.msg-bubble').textContent = 'Bonjour Alexis ! Brief non disponible.';
-      }
     }
   }
 
