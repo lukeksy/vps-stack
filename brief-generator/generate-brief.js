@@ -33,9 +33,9 @@ const NOTION_PROP_DUE    = process.env.NOTION_PROP_DUE    || 'Échéance';
 
 const OUTPUT_PATH = process.env.BRIEF_OUTPUT_PATH || '/home/node/brief-output/data.json';
 
-// Coordonnées : La Garenne-Colombes
-const LAT = 48.9034;
-const LON = 2.2414;
+// Coordonnées : Paris 12e
+const LAT = 48.8489;
+const LON = 2.3892;
 
 // ── WMO codes ─────────────────────────────────────────────────────────────────
 
