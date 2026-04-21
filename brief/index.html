@@ -607,7 +607,7 @@
         <div class="card-header">
           <span class="card-icon">🌤</span>
           <span class="card-title">Météo</span>
-          <span class="card-badge">La Garenne-Colombes</span>
+          <span class="card-badge">Paris 12e</span>
         </div>
         <div class="weather-top">
           <div class="weather-icon" id="w-icon">⛅</div>
@@ -1023,16 +1023,37 @@
       </div>`;
     }
 
+    // Calcul du layout en colonnes pour les événements simultanés
+    function layoutEvents(events) {
+      if (!events.length) return [];
+      const evs = events.map(ev => ({ ...ev, startMin: tlMinutes(ev.start), endMin: tlMinutes(ev.end), col: 0, totalCols: 1 }));
+      evs.sort((a, b) => a.startMin - b.startMin);
+      const colEnds = [];
+      for (const ev of evs) {
+        let col = colEnds.findIndex(end => end <= ev.startMin);
+        if (col === -1) { col = colEnds.length; colEnds.push(ev.endMin); }
+        else { colEnds[col] = ev.endMin; }
+        ev.col = col;
+      }
+      for (const ev of evs) {
+        const overlapping = evs.filter(o => o.startMin < ev.endMin && o.endMin > ev.startMin);
+        ev.totalCols = Math.max(...overlapping.map(o => o.col)) + 1;
+      }
+      return evs;
+    }
+
     let evHTML = '<div class="tl-events-layer">';
     let count = 0;
-    for (const ev of TL_EVENTS) {
+    for (const ev of layoutEvents(TL_EVENTS)) {
       const top  = tlTop(ev.start);
       const h    = tlHeight(ev.start, ev.end);
       const past = tlMinutes(ev.end) < nowMins;
       const cls  = TYPE_CLS[ev.type] || 'ev-cal';
       const tall = h >= 36;
+      const colPct  = 100 / ev.totalCols;
+      const leftPct = ev.col * colPct;
       evHTML += `<div class="tl-event ${cls}${past ? ' past' : ''}"
-        style="top:${top}px;height:${h}px">
+        style="top:${top}px;height:${h}px;left:${leftPct}%;width:calc(${colPct}% - 4px);right:auto">
         <div class="tl-event-title">${ev.title}</div>
         ${tall && ev.sub  ? `<div class="tl-event-sub">${ev.sub}</div>` : ''}
         ${tall ? `<div class="tl-event-time">${tlFmt(ev.start)} – ${tlFmt(ev.end)}</div>` : ''}
