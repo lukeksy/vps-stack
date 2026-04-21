@@ -71,12 +71,20 @@ assistant.delaale.fr {
 
 # brief — dashboard Morning Brief
 brief.delaale.fr {
-    basic_auth {
-        alexis $2a$14$Zfgrr5aW11uVGe6u0OD9hOOrXPtmTsTkCXA3ms8dUMSOPcSxSXYze
+    handle /trigger {
+        rewrite * /webhook/brief-refresh
+        reverse_proxy n8n:5678 {
+            header_up Host n8n.delaale.fr
+        }
     }
-    root * /srv/brief
-    file_server
-    encode gzip
+    handle {
+        basic_auth {
+            alexis $2a$14$Zfgrr5aW11uVGe6u0OD9hOOrXPtmTsTkCXA3ms8dUMSOPcSxSXYze
+        }
+        root * /srv/brief
+        file_server
+        encode gzip
+    }
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains"
         X-Content-Type-Options "nosniff"
