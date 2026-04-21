@@ -796,6 +796,7 @@
       <div class="page-updated">
         <span id="page-updated">Mis à jour à 07h03</span>
         <button class="refresh-btn" id="refresh-btn" onclick="refreshBrief()" title="Recharger les données">↺</button>
+        <button class="refresh-btn" id="trigger-btn" onclick="triggerWorkflow()" title="Relancer le workflow n8n">▶</button>
       </div>
 
     </div><!-- /grid -->
@@ -1459,6 +1460,26 @@
     } catch (e) {
       console.warn('data.json non disponible, données de démo affichées :', e.message);
     }
+  }
+
+  async function triggerWorkflow() {
+    const btn = document.getElementById('trigger-btn');
+    const upd = document.getElementById('page-updated');
+    btn.classList.add('spinning');
+    btn.disabled = true;
+    upd.textContent = 'Lancement du workflow…';
+    try {
+      const res = await fetch('/trigger/webhook/brief-refresh', { method: 'POST' });
+      if (!res.ok) throw new Error(res.status);
+      upd.textContent = 'Workflow lancé, chargement dans 15s…';
+      await new Promise(r => setTimeout(r, 15000));
+      await loadBrief();
+    } catch(e) {
+      upd.textContent = 'Erreur déclenchement workflow';
+      setTimeout(() => loadBrief(), 1000);
+    }
+    btn.classList.remove('spinning');
+    btn.disabled = false;
   }
 
   async function refreshBrief() {
