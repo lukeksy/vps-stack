@@ -1469,7 +1469,7 @@
     btn.disabled = true;
     upd.textContent = 'Lancement du workflow…';
     try {
-      const res = await fetch('/trigger/webhook/brief-refresh', { method: 'POST' });
+      const res = await fetch('/trigger', { method: 'POST' });
       if (!res.ok) throw new Error(res.status);
       upd.textContent = 'Workflow lancé, chargement dans 15s…';
       await new Promise(r => setTimeout(r, 15000));
