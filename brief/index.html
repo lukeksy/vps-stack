@@ -113,9 +113,43 @@
     }
     .greeting { font-size: 24px; font-weight: 300; letter-spacing: -0.02em; }
     .greeting strong { font-weight: 600; }
-    .header-right { display: flex; align-items: baseline; gap: 18px; }
-    .header-date { font-size: 18px; font-weight: 300; color: var(--text-2); text-transform: capitalize; letter-spacing: -0.01em; }
-    .header-time { font-size: 32px; font-weight: 300; color: var(--text); letter-spacing: -0.03em; line-height: 1; }
+    .header-right { display: flex; align-items: center; }
+
+    /* Header pill */
+    .header-pill {
+      display: flex; align-items: stretch;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .pill-section {
+      padding: 9px 18px;
+      display: flex; flex-direction: column; justify-content: center;
+      gap: 3px;
+    }
+    .pill-divider {
+      width: 1px; background: var(--border);
+      flex-shrink: 0; margin: 7px 0;
+    }
+    .pill-time {
+      font-size: 26px; font-weight: 300;
+      color: var(--text); letter-spacing: -0.03em; line-height: 1;
+    }
+    .pill-date {
+      font-size: 11px; color: var(--text-dim);
+      text-transform: capitalize; line-height: 1;
+    }
+    .pill-tokens { align-items: flex-end; }
+    .pill-token-count {
+      font-size: 20px; font-weight: 300;
+      color: var(--text-2); letter-spacing: -0.01em; line-height: 1;
+    }
+    .pill-token-unit { font-size: 11px; color: var(--text-dim); }
+    .pill-token-label {
+      font-size: 9px; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--text-dim); line-height: 1;
+    }
 
     /* "Mis à jour" en bas de page */
     .page-updated {
@@ -595,12 +629,17 @@
         <div class="greeting">Bonjour <strong>Alexis</strong> ☀️</div>
       </div>
       <div class="header-right">
-        <div id="usage-tokens" style="display:none;text-align:right">
-          <div style="font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:2px">Claude API</div>
-          <div style="font-size:15px;font-weight:300;color:var(--text-2);letter-spacing:-0.01em"><span id="usage-count">—</span> <span style="font-size:11px;color:var(--text-dim)">tokens</span></div>
+        <div class="header-pill">
+          <div class="pill-section">
+            <div class="pill-time" id="live-clock">—</div>
+            <div class="pill-date" id="header-date">—</div>
+          </div>
+          <div class="pill-divider"></div>
+          <div class="pill-section pill-tokens">
+            <div class="pill-token-count"><span id="usage-count">—</span><span class="pill-token-unit"> tok</span></div>
+            <div class="pill-token-label">Claude API</div>
+          </div>
         </div>
-        <div class="header-date" id="header-date">Lundi 20 avril 2026</div>
-        <div class="header-time" id="live-clock">—</div>
       </div>
     </div>
 
@@ -849,6 +888,8 @@
     const m = String(now.getMinutes()).padStart(2, '0');
     const s = String(now.getSeconds()).padStart(2, '0');
     document.getElementById('live-clock').textContent = `${h}:${m}:${s}`;
+    document.getElementById('header-date').textContent =
+      now.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
   }
   updateClock();
   setInterval(updateClock, 1000);
@@ -1523,9 +1564,8 @@
 
       if (data.usage) {
         const total = (data.usage.inputTokens || 0) + (data.usage.outputTokens || 0);
-        const fmt = total >= 1000 ? (total / 1000).toFixed(1) + 'k' : total;
-        document.getElementById('usage-count').textContent = fmt;
-        document.getElementById('usage-tokens').style.display = '';
+        document.getElementById('usage-count').textContent =
+          total >= 1000 ? (total / 1000).toFixed(1) + 'k' : String(total);
       }
 
     } catch (e) {
