@@ -795,6 +795,7 @@
 
       <div class="page-updated">
         <span id="page-updated">Mis à jour à 07h03</span>
+        <span id="usage-tokens" style="display:none">· <span id="usage-count">—</span> tokens Claude</span>
         <button class="refresh-btn" id="refresh-btn" onclick="refreshBrief()" title="Recharger les données">↺</button>
         <button class="refresh-btn" id="trigger-btn" onclick="triggerWorkflow()" title="Relancer le workflow n8n">▶</button>
       </div>
@@ -818,19 +819,9 @@
       <button class="chat-hide-btn" id="chat-hide-btn" onclick="toggleChat()" title="Masquer">‹</button>
     </div>
 
-    <!-- En production : remplacer par <div class="chat-iframe-wrap"><iframe src="/chat/"></iframe></div> -->
     <div class="chat-messages" id="chat-messages">
-      <div class="msg msg-ai">
-        <div class="msg-bubble">Bonjour Alexis ! J'ai lu ton brief du jour. Tu as 3 tâches urgentes et Thomas Bernard attend une réponse à propos des partitions. Je peux t'aider avec quelque chose ?</div>
-        <div class="msg-time">07h03</div>
-      </div>
-      <div class="msg msg-user">
-        <div class="msg-bubble">Rédige une réponse à Thomas pour lui donner accès au dossier OneDrive</div>
-        <div class="msg-time">08h15</div>
-      </div>
-      <div class="msg msg-ai">
-        <div class="msg-bubble">Voici un brouillon :<br><br>Bonjour Thomas, le lien de partage pour les partitions Programme C est le suivant : <em>[lien OneDrive]</em>. N'hésite pas si tu rencontres encore des difficultés.<br><br>Je le sauvegarde en brouillon Gmail ?</div>
-        <div class="msg-time">08h15</div>
+      <div class="msg msg-ai" id="chat-greeting">
+        <div class="msg-bubble" style="opacity:0.5">Chargement du brief…</div>
       </div>
     </div>
 
@@ -1316,20 +1307,89 @@
   // ══════════════════════════════════════════════════════════════════════════
   // CHAT — SEND MESSAGE
   // ══════════════════════════════════════════════════════════════════════════
-  function sendMsg() {
+  let _chatHistory = [];
+  let _chatBusy = false;
+
+  function appendMsg(role, html, id) {
+    const msgs = document.getElementById('chat-messages');
+    const now  = new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+    const div  = document.createElement('div');
+    div.className = 'msg ' + (role === 'user' ? 'msg-user' : 'msg-ai');
+    if (id) div.id = id;
+    div.innerHTML = `<div class="msg-bubble">${html}</div><div class="msg-time">${now}</div>`;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return div;
+  }
+
+  async function callChat(message) {
+    const res = await fetch('/brief-chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, history: _chatHistory.slice(-10) }),
+    });
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    return data.reply || '…';
+  }
+
+  async function sendMsg() {
+    if (_chatBusy) return;
     const input = document.getElementById('chat-input');
     const text  = input.value.trim();
     if (!text) return;
-    const messages = document.getElementById('chat-messages');
-    const now = new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
-    messages.innerHTML += `
-      <div class="msg msg-user">
-        <div class="msg-bubble">${text.replace(/</g,'&lt;')}</div>
-        <div class="msg-time">${now}</div>
-      </div>`;
+
+    _chatBusy = true;
     input.value = '';
     input.style.height = 'auto';
-    messages.scrollTop = messages.scrollHeight;
+    input.disabled = true;
+
+    appendMsg('user', text.replace(/</g,'&lt;').replace(/\n/g,'<br>'));
+    _chatHistory.push({ role: 'user', content: text });
+
+    const thinkId = 'thinking-' + Date.now();
+    appendMsg('ai', '<span style="opacity:.4;letter-spacing:2px">···</span>', thinkId);
+
+    try {
+      const reply = await callChat(text);
+      document.getElementById(thinkId)?.remove();
+      appendMsg('ai', reply.replace(/</g,'&lt;').replace(/\n/g,'<br>'));
+      _chatHistory.push({ role: 'assistant', content: reply });
+    } catch(e) {
+      document.getElementById(thinkId)?.remove();
+      appendMsg('ai', '<span style="color:var(--red)">Erreur de connexion.</span>');
+    }
+
+    _chatBusy = false;
+    input.disabled = false;
+    input.focus();
+  }
+
+  async function initChatGreeting(briefData) {
+    const greetingEl = document.getElementById('chat-greeting');
+    // Build a compact summary to prime the greeting
+    const todoist = (briefData.tasks?.todoist || []);
+    const bayard  = (briefData.tasks?.bayard  || []);
+    const tele    = (briefData.tasks?.telemann|| []);
+    const overdue = todoist.filter(t => t.overdue).length
+                  + bayard.filter(t => t.overdue).length
+                  + tele.filter(t => t.overdue).length;
+
+    const prompt = `__greeting__ (réponds en 2 phrases max, de façon naturelle et personnalisée selon le brief)`;
+    try {
+      const reply = await callChat(prompt);
+      if (greetingEl) greetingEl.remove();
+      const msgs = document.getElementById('chat-messages');
+      const div = document.createElement('div');
+      div.className = 'msg msg-ai';
+      const now = new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+      div.innerHTML = `<div class="msg-bubble">${reply.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div><div class="msg-time">${now}</div>`;
+      msgs.insertBefore(div, msgs.firstChild);
+      msgs.scrollTop = 0;
+      _chatHistory = [{ role: 'assistant', content: reply }];
+    } catch(e) {
+      if (greetingEl) greetingEl.querySelector('.msg-bubble').textContent = 'Bonjour Alexis ! Brief chargé. Comment puis-je t\'aider ?';
+    }
   }
 
   document.getElementById('chat-input').addEventListener('input', function() {
@@ -1457,8 +1517,23 @@
         const m = String(d.getMinutes()).padStart(2,'0');
         document.getElementById('page-updated').textContent = `Mis à jour à ${h}h${m}`;
       }
+
+      if (data.usage) {
+        const total = (data.usage.inputTokens || 0) + (data.usage.outputTokens || 0);
+        const fmt = total >= 1000 ? (total / 1000).toFixed(1) + 'k' : total;
+        document.getElementById('usage-count').textContent = fmt;
+        document.getElementById('usage-tokens').style.display = '';
+      }
+
+      // Greeting contextuel si le chat est en état initial
+      if (document.getElementById('chat-greeting')) {
+        initChatGreeting(data);
+      }
     } catch (e) {
       console.warn('data.json non disponible, données de démo affichées :', e.message);
+      if (document.getElementById('chat-greeting')) {
+        document.getElementById('chat-greeting').querySelector('.msg-bubble').textContent = 'Bonjour Alexis ! Brief non disponible.';
+      }
     }
   }
 

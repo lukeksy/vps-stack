@@ -22,10 +22,11 @@ const fs = require('fs');
 
 // ── Configuration ──────────────────────────────────────────────────────────────
 
-const TODOIST_TOKEN      = process.env.TODOIST_TOKEN;
-const NOTION_TOKEN       = process.env.NOTION_TOKEN;
-const NOTION_BAYARD_DB   = process.env.NOTION_BAYARD_TASKS_DB;
-const NOTION_TELEMANN_DB = process.env.NOTION_TELEMANN_TASKS_DB;
+const TODOIST_TOKEN       = process.env.TODOIST_TOKEN;
+const NOTION_TOKEN        = process.env.NOTION_TOKEN;
+const NOTION_BAYARD_DB    = process.env.NOTION_BAYARD_TASKS_DB;
+const NOTION_TELEMANN_DB  = process.env.NOTION_TELEMANN_TASKS_DB;
+const ANTHROPIC_ADMIN_KEY = process.env.ANTHROPIC_ADMIN_KEY;
 
 const NOTION_PROP_NAME   = process.env.NOTION_PROP_NAME   || 'Nom';
 const NOTION_PROP_STATUS = process.env.NOTION_PROP_STATUS || 'Statut';
@@ -210,6 +211,41 @@ async function fetchNotionTasks(databaseId) {
     .filter(t => !DONE_STATUSES.has((t.status ?? '').toLowerCase()));
 }
 
+// ── Claude API Usage ──────────────────────────────────────────────────────────
+
+async function fetchClaudeUsage() {
+  if (!ANTHROPIC_ADMIN_KEY) return null;
+
+  const today      = new Date().toISOString().split('T')[0];
+  const startingAt = today + 'T00:00:00Z';
+  const endingAt   = today + 'T23:59:59Z';
+
+  const params = new URLSearchParams({
+    starting_at:  startingAt,
+    ending_at:    endingAt,
+    bucket_width: '1d',
+  });
+
+  const res = await fetch(`https://api.anthropic.com/v1/organizations/usage_report/messages?${params}`, {
+    headers: {
+      'anthropic-version': '2023-06-01',
+      'x-api-key': ANTHROPIC_ADMIN_KEY,
+    },
+  });
+  if (!res.ok) throw new Error(`Anthropic usage: ${res.status}`);
+
+  const data = await res.json();
+  let inputTokens = 0, outputTokens = 0, cacheReadTokens = 0, cacheCreateTokens = 0;
+  for (const bucket of (data.data || [])) {
+    inputTokens       += bucket.input_tokens                   || 0;
+    outputTokens      += bucket.output_tokens                  || 0;
+    cacheReadTokens   += bucket.cache_read_input_tokens        || 0;
+    cacheCreateTokens += bucket.cache_creation_input_tokens    || 0;
+  }
+
+  return { inputTokens, outputTokens, cacheReadTokens, cacheCreateTokens };
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -226,18 +262,20 @@ async function main() {
   }
 
   // Appels parallèles — chaque source est indépendante
-  const [weather, todoist, bayard, telemann] = await Promise.allSettled([
+  const [weather, todoist, bayard, telemann, usage] = await Promise.allSettled([
     fetchWeather(),
     fetchTodoist(),
     fetchNotionTasks(NOTION_BAYARD_DB),
     fetchNotionTasks(NOTION_TELEMANN_DB),
+    fetchClaudeUsage(),
   ]);
 
   const warnings = [];
-  if (weather.status  === 'rejected') warnings.push('Météo: '   + weather.reason?.message);
-  if (todoist.status  === 'rejected') warnings.push('Todoist: ' + todoist.reason?.message);
-  if (bayard.status   === 'rejected') warnings.push('Bayard: '  + bayard.reason?.message);
-  if (telemann.status === 'rejected') warnings.push('Telemann: '+ telemann.reason?.message);
+  if (weather.status  === 'rejected') warnings.push('Météo: '    + weather.reason?.message);
+  if (todoist.status  === 'rejected') warnings.push('Todoist: '  + todoist.reason?.message);
+  if (bayard.status   === 'rejected') warnings.push('Bayard: '   + bayard.reason?.message);
+  if (telemann.status === 'rejected') warnings.push('Telemann: ' + telemann.reason?.message);
+  if (usage.status    === 'rejected') warnings.push('Usage: '    + usage.reason?.message);
 
   const data = {
     generated_at: new Date().toISOString(),
@@ -247,6 +285,7 @@ async function main() {
       bayard:   bayard.status   === 'fulfilled' ? bayard.value   : [],
       telemann: telemann.status === 'fulfilled' ? telemann.value : [],
     },
+    usage:  usage.status === 'fulfilled' ? usage.value : null,
     // Emails et agenda remplis plus tard (Gmail + Google Calendar via n8n)
     emails: [],
     agenda: [],

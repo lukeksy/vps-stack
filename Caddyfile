@@ -77,6 +77,12 @@ brief.delaale.fr {
             header_up Host n8n.delaale.fr
         }
     }
+    handle /brief-chat {
+        rewrite * /webhook/brief-chat
+        reverse_proxy n8n:5678 {
+            header_up Host n8n.delaale.fr
+        }
+    }
     handle {
         basic_auth {
             alexis $2a$14$Zfgrr5aW11uVGe6u0OD9hOOrXPtmTsTkCXA3ms8dUMSOPcSxSXYze
